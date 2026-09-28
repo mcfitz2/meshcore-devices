@@ -1,0 +1,18 @@
+name: Stealth Companion
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: MeshCore version, e.g. v1.17.1 (blank = latest)
+        required: false
+        default: ""
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-device.yml
+    with:
+      slug: stealth-companion
+      version: ${{ inputs.version }}

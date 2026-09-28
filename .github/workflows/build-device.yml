@@ -1,0 +1,96 @@
+name: Build device
+
+# Reusable: builds one device and publishes it to the release
+# "<slug>-<version>". Called by check-releases.yml and the per-device
+# workflows.
+on:
+  workflow_call:
+    inputs:
+      slug:
+        description: Device slug from devices.json
+        required: true
+        type: string
+      version:
+        description: MeshCore version, e.g. v1.17.1 (blank = latest)
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  build:
+    name: ${{ inputs.slug }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    concurrency:
+      group: build-${{ inputs.slug }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      SLUG: ${{ inputs.slug }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Resolve MeshCore tag
+        id: tag
+        run: |
+          firmware=$(jq -er --arg s "$SLUG" '.[] | select(.slug == $s) | .firmware' devices.json)
+          name=$(jq -er --arg s "$SLUG" '.[] | select(.slug == $s) | .name' devices.json)
+          if [ -z "$VERSION" ]; then
+            tag=$(scripts/latest-tag.sh "$firmware")
+          else
+            tag="$firmware-$VERSION"
+          fi
+          {
+            echo "tag=$tag"
+            echo "version=${tag##*-}"
+            echo "name=$name"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v6
+        with:
+          repository: meshcore-dev/MeshCore
+          ref: ${{ steps.tag.outputs.tag }}
+          path: meshcore
+
+      # Caches unused for 7 days get evicted, so this mainly helps reruns and
+      # devices sharing a platform on the same day.
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio/packages
+            ~/.platformio/platforms
+            ~/.platformio/.cache
+          key: pio-${{ inputs.slug }}-${{ hashFiles('meshcore/platformio.ini') }}
+          restore-keys: pio-${{ inputs.slug }}-
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - run: pip install platformio
+
+      - run: scripts/build-device.sh "$SLUG" meshcore
+
+      - name: Publish release
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.tag.outputs.version }}
+          NAME: ${{ steps.tag.outputs.name }}
+        run: |
+          release="$SLUG-$RELEASE_VERSION"
+          if gh release view "$release" >/dev/null 2>&1; then
+            gh release upload "$release" out/* --clobber
+          else
+            gh release create "$release" out/* \
+              --title "$NAME $RELEASE_VERSION" \
+              --notes "$NAME firmware built from MeshCore [\`$TAG\`](https://github.com/meshcore-dev/MeshCore/releases/tag/$TAG).
+
+          - \`$SLUG-$RELEASE_VERSION.bin\`: update an existing device (OTA or USB update).
+          - \`$SLUG-$RELEASE_VERSION-merged.bin\`: full flash of a new or wiped device, written at 0x0.
+
+          First-boot defaults: US preset (910.525 MHz / 62.5 kHz / SF7 / CR5). Set admin and guest passwords in the app."
+          fi

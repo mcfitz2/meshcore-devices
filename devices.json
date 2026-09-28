@@ -1,0 +1,20 @@
+[
+  {
+    "slug": "solar-repeater",
+    "name": "Solar Repeater",
+    "firmware": "repeater",
+    "env": "solar_repeater"
+  },
+  {
+    "slug": "stealth-companion",
+    "name": "Stealth Companion",
+    "firmware": "companion",
+    "env": "stealth_companion"
+  },
+  {
+    "slug": "gmrs-backpack-companion",
+    "name": "GMRS Backpack Companion",
+    "firmware": "companion",
+    "env": "gmrs_backpack_companion"
+  }
+]
