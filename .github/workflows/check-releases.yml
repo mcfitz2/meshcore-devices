@@ -54,3 +54,12 @@ jobs:
     with:
       slug: ${{ matrix.slug }}
       version: ${{ matrix.version }}
+
+  pages:
+    needs: build
+    if: ${{ !cancelled() && needs.build.result != 'skipped' }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy-pages.yml

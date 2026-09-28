@@ -3,18 +3,24 @@
     "slug": "solar-repeater",
     "name": "Solar Repeater",
     "firmware": "repeater",
-    "env": "solar_repeater"
+    "env": "solar_repeater",
+    "hardware": "Xiao ESP32-C6 + Wio-SX1262",
+    "chip": "ESP32-C6"
   },
   {
     "slug": "stealth-companion",
     "name": "Stealth Companion",
     "firmware": "companion",
-    "env": "stealth_companion"
+    "env": "stealth_companion",
+    "hardware": "Heltec V3",
+    "chip": "ESP32-S3"
   },
   {
     "slug": "gmrs-backpack-companion",
     "name": "GMRS Backpack Companion",
     "firmware": "companion",
-    "env": "gmrs_backpack_companion"
+    "env": "gmrs_backpack_companion",
+    "hardware": "Heltec V3",
+    "chip": "ESP32-S3"
   }
 ]
