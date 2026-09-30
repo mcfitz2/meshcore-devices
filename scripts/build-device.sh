@@ -14,6 +14,11 @@ version=$(git -C "$meshcore" describe --tags --exact-match 2>/dev/null || echo d
 version=${version##*-}
 sha=$(git -C "$meshcore" rev-parse --short HEAD)
 
+# upstream ESP32Board::begin() calls adcAttachPin(), which Arduino core 3.x (C6)
+# removed, so any C6 build with PIN_VBAT_READ fails to compile. The call is
+# unnecessary: analogReadMilliVolts() attaches the pin itself.
+sed -i.bak '/adcAttachPin(PIN_VBAT_READ);/d' "$meshcore/src/helpers/ESP32Board.h"
+
 # upstream platformio.ini loads platformio.local.ini if present
 cat "$root"/devices/*.ini > "$meshcore/platformio.local.ini"
 
