@@ -5,10 +5,29 @@
 # usage: scripts/build-site.sh
 set -euo pipefail
 
+# esp-web-tools is vendored from its npm tarball so the flasher page doesn't
+# run code served by a third-party CDN. Bump both together; the integrity is
+# .dist.integrity from https://registry.npmjs.org/esp-web-tools/<version>
+esp_web_tools_version=10.4.0
+esp_web_tools_integrity=sha512-3pwkeFFm5Fj7UQo8SJNYK5RXrtNCpq6X9QoI6bMT4GBZWgrJqjn0YvM9ihG74BtMoSFYXfmDtkehuxe50PTMPQ==
+
 root=$(cd "$(dirname "$0")/.." && pwd)
 site="$root/site"
 rm -rf "$site"
 mkdir -p "$site/firmware"
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+curl -fsSL -o "$tmp/ewt.tgz" \
+  "https://registry.npmjs.org/esp-web-tools/-/esp-web-tools-$esp_web_tools_version.tgz"
+actual="sha512-$(openssl dgst -sha512 -binary < "$tmp/ewt.tgz" | openssl base64 -A)"
+if [ "$actual" != "$esp_web_tools_integrity" ]; then
+  echo "error: esp-web-tools $esp_web_tools_version tarball integrity mismatch" >&2
+  exit 1
+fi
+tar -xzf "$tmp/ewt.tgz" -C "$tmp" package/dist/web
+mkdir -p "$site/esp-web-tools"
+cp -R "$tmp/package/dist/web/." "$site/esp-web-tools/"
 
 rows=""
 while read -r device; do
@@ -54,7 +73,7 @@ cat > "$site/index.html" <<EOF
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MeshCore device flasher</title>
-  <script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
+  <script type="module" src="esp-web-tools/install-button.js"></script>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
     table { border-collapse: collapse; width: 100%; }
