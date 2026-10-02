@@ -27,13 +27,40 @@ if [ "${#fw_version}" -gt 19 ]; then
   exit 1
 fi
 
+# Both files below are changed in the checkout for the build only. Keep copies
+# and restore them on exit (success or failure) so a local run leaves the
+# user's MeshCore checkout, including any edits of their own, as it was.
+board_h="$meshcore/src/helpers/ESP32Board.h"
+local_ini="$meshcore/platformio.local.ini"
+backup=$(mktemp -d)
+cp "$board_h" "$backup/ESP32Board.h"
+had_local_ini=0
+if [ -e "$local_ini" ]; then
+  had_local_ini=1
+  cp "$local_ini" "$backup/platformio.local.ini"
+fi
+restore() {
+  cp "$backup/ESP32Board.h" "$board_h"
+  if [ "$had_local_ini" = 1 ]; then
+    cp "$backup/platformio.local.ini" "$local_ini"
+  else
+    rm -f "$local_ini"
+  fi
+  rm -rf "$backup"
+}
+trap restore EXIT
+
 # upstream ESP32Board::begin() calls adcAttachPin(), which Arduino core 3.x (C6)
 # removed, so any C6 build with PIN_VBAT_READ fails to compile. The call is
 # unnecessary: analogReadMilliVolts() attaches the pin itself.
-sed -i.bak '/adcAttachPin(PIN_VBAT_READ);/d' "$meshcore/src/helpers/ESP32Board.h"
+if grep -q 'adcAttachPin(PIN_VBAT_READ);' "$backup/ESP32Board.h"; then
+  sed '/adcAttachPin(PIN_VBAT_READ);/d' "$backup/ESP32Board.h" > "$board_h"
+else
+  echo "note: upstream no longer calls adcAttachPin(PIN_VBAT_READ); the ESP32Board.h workaround in build-device.sh can be removed" >&2
+fi
 
 # upstream platformio.ini loads platformio.local.ini if present
-cat "$root"/devices/*.ini > "$meshcore/platformio.local.ini"
+cat "$root"/devices/*.ini > "$local_ini"
 
 build_date=$(date '+%d %b %Y')
 export PLATFORMIO_BUILD_FLAGS="-DFIRMWARE_BUILD_DATE='\"$build_date\"' -DFIRMWARE_VERSION='\"$fw_version\"'"
