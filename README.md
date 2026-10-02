@@ -23,27 +23,38 @@ Every build uses the US preset (910.525 MHz / 62.5 kHz / SF7 / CR5) as its first
 
 Each release is named `<device>-<version>`, e.g. `solar-repeater-v1.17.1`.
 
+ESP32 devices (`"platform": "esp32"`):
+
 - `<device>-<version>.bin`: app image. Use it to update a device that already runs MeshCore (OTA or USB).
 - `<device>-<version>-merged.bin`: full flash image, written at `0x0`. Use it for a new or wiped device.
+
+nRF52 devices (`"platform": "nrf52"`, e.g. RAK4631, T1000-E):
+
+- `<device>-<version>.uf2`: double-tap the reset button to mount the device as a USB drive, then copy this file onto it.
+- `<device>-<version>.zip`: DFU package, for nRF Connect or `adafruit-nrfutil`.
+
+nRF52 devices can't be flashed from the browser, so the web flasher page links these two files instead of showing an install button.
+
+Rebuilding a version replaces that release's files in place. Devices report their firmware version as `<meshcore-version>-<config-commit>`, e.g. `v1.17.1-eab965e`.
 
 ## Updating the Solar Repeater over WiFi
 
 1. Send `start ota` from the app or CLI.
 2. Join the open `MeshCore-OTA` WiFi network and open `http://192.168.4.1/update`.
-3. Upload `solar-repeater-<version>.bin`. The device reboots when done.
+3. Upload `solar-repeater-<version>.bin`, linked as "OTA update" on the web flasher page. The device reboots when done.
 
 ## How builds run
 
-- **Check for MeshCore releases** runs daily. For each device it looks up the latest MeshCore release of that device's firmware type and builds it if this repo has no matching release yet.
-- Each device also has its own workflow (e.g. **Solar Repeater**) to build on demand, optionally for a specific MeshCore version.
+- **Check for MeshCore releases** runs daily and on pushes that change device config. It builds a device if this repo has no complete release for the latest MeshCore version of its firmware type, or if that release was built from older device config (the release notes record the config commit).
+- **Build device on demand** builds one device by slug on demand, optionally for a specific MeshCore version.
 - After any build, **Deploy web flasher** republishes the site with each device's highest-version release.
 
 GitHub disables scheduled workflows in public repos after 60 days without commits. If that happens, re-enable **Check for MeshCore releases** from the Actions tab.
 
 ## Adding a device
 
-1. Add an entry to `devices.json`: `slug`, `name`, `firmware` (`repeater`, `companion` or `room-server`), `env`, `hardware` (shown on the flasher page) and `chip` (ESP Web Tools chip family, e.g. `ESP32-S3`).
+1. Add an entry to `devices.json`: `slug`, `name`, `firmware` (`repeater`, `companion` or `room-server`), `platform` (`esp32` or `nrf52`), `env` and `hardware` (shown on the flasher page). ESP32 entries also need `chip` (ESP Web Tools chip family, e.g. `ESP32-S3`) and may set `ota: true` to add an OTA .bin link on the flasher page (for devices with WiFi OTA enabled). nRF52 entries must not set `chip` or `ota`.
 2. Add `devices/<slug>.ini` defining `[env:<env>]`. Extend an upstream target and add `${us_preset.build_flags}`.
-3. Copy one of the per-device workflows in `.github/workflows/` and change its name and slug.
+3. Run `scripts/check-devices.sh` to check that `devices.json` and `devices/` agree (the **Lint** workflow also runs it on pushes and PRs).
 
 Build locally with `scripts/build-device.sh <slug> <path-to-MeshCore-checkout>`.

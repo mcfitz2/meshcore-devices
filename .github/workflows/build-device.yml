@@ -1,8 +1,8 @@
 name: Build device
 
 # Reusable: builds one device and publishes it to the release
-# "<slug>-<version>". Called by check-releases.yml and the per-device
-# workflows.
+# "<slug>-<version>". Rebuilding an existing version replaces its assets and
+# notes in place. Called by check-releases.yml and build.yml.
 on:
   workflow_call:
     inputs:
@@ -75,22 +75,45 @@ jobs:
 
       - run: scripts/build-device.sh "$SLUG" meshcore
 
+      # out/ is uploaded as is; fail here if it differs from what plan-builds
+      # and the flasher page expect for this platform
+      - name: Check built files
+        env:
+          RELEASE_VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          diff <(scripts/assets.sh "$SLUG" "$RELEASE_VERSION" | sort) <(basename -a out/* | sort)
+
       - name: Publish release
         env:
           TAG: ${{ steps.tag.outputs.tag }}
           RELEASE_VERSION: ${{ steps.tag.outputs.version }}
           NAME: ${{ steps.tag.outputs.name }}
+          # in a called workflow this is the caller's commit, which is what
+          # was checked out
+          CONFIG_SHA: ${{ github.sha }}
         run: |
           release="$SLUG-$RELEASE_VERSION"
+          if [ "$(jq -er --arg s "$SLUG" '.[] | select(.slug == $s) | .platform' devices.json)" = nrf52 ]; then
+            files="- \`$SLUG-$RELEASE_VERSION.uf2\`: double-tap reset to mount the USB drive, then copy this file onto it.
+          - \`$SLUG-$RELEASE_VERSION.zip\`: DFU package for nRF Connect or adafruit-nrfutil."
+          else
+            files="- \`$SLUG-$RELEASE_VERSION.bin\`: update an existing device (OTA or USB update).
+          - \`$SLUG-$RELEASE_VERSION-merged.bin\`: full flash of a new or wiped device, written at 0x0."
+          fi
+          notes="$NAME firmware built from MeshCore [\`$TAG\`](https://github.com/meshcore-dev/MeshCore/releases/tag/$TAG).
+          Device config: [\`${CONFIG_SHA:0:7}\`](https://github.com/$GH_REPO/commit/$CONFIG_SHA)
+
+          $files
+
+          First-boot defaults: US preset (910.525 MHz / 62.5 kHz / SF7 / CR5). Set admin and guest passwords in the app.
+
+          <!-- config-sha: $CONFIG_SHA -->"
           if gh release view "$release" >/dev/null 2>&1; then
+            # assets first: the marker must not appear before they are in place
             gh release upload "$release" out/* --clobber
+            gh release edit "$release" --title "$NAME $RELEASE_VERSION" --notes "$notes"
           else
             gh release create "$release" out/* \
               --title "$NAME $RELEASE_VERSION" \
-              --notes "$NAME firmware built from MeshCore [\`$TAG\`](https://github.com/meshcore-dev/MeshCore/releases/tag/$TAG).
-
-          - \`$SLUG-$RELEASE_VERSION.bin\`: update an existing device (OTA or USB update).
-          - \`$SLUG-$RELEASE_VERSION-merged.bin\`: full flash of a new or wiped device, written at 0x0.
-
-          First-boot defaults: US preset (910.525 MHz / 62.5 kHz / SF7 / CR5). Set admin and guest passwords in the app."
+              --notes "$notes"
           fi

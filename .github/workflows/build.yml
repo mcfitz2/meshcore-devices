@@ -1,0 +1,54 @@
+name: Build device on demand
+
+# Manual build of one device, optionally for a specific MeshCore version,
+# then republishes the web flasher.
+on:
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: Device slug from devices.json, e.g. solar-repeater
+        required: true
+        type: string
+      version:
+        description: MeshCore version, e.g. v1.17.1 (blank = latest)
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: devices.json
+          sparse-checkout-cone-mode: false
+      - name: Check slug exists in devices.json
+        env:
+          SLUG: ${{ inputs.slug }}
+        run: |
+          if ! jq -e --arg slug "$SLUG" 'any(.[]; .slug == $slug)' devices.json >/dev/null; then
+            known=$(jq -r '[.[].slug] | join(", ")' devices.json)
+            echo "::error::Unknown device \"$SLUG\". Known: $known"
+            exit 1
+          fi
+
+  build:
+    needs: validate
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-device.yml
+    with:
+      slug: ${{ inputs.slug }}
+      version: ${{ inputs.version }}
+
+  pages:
+    needs: build
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy-pages.yml

@@ -1,8 +1,16 @@
 name: Check for MeshCore releases
 
-# Once a day, build any device whose release for the latest MeshCore
-# version doesn't exist yet. Exits in seconds when nothing is new.
+# Daily and on pushes that change device config, build any device whose
+# release for the latest MeshCore version is missing, incomplete, or built
+# from older config (see scripts/plan-builds.sh). Exits in seconds when
+# nothing needs building.
 on:
+  push:
+    branches: [main]
+    paths:
+      - devices.json
+      - devices/**
+      - scripts/build-device.sh
   schedule:
     - cron: "17 11 * * *"
   workflow_dispatch:
@@ -19,6 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          fetch-depth: 0
           sparse-checkout: |
             devices.json
             scripts
@@ -28,17 +37,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          builds='[]'
-          while read -r slug firmware; do
-            tag=$(scripts/latest-tag.sh "$firmware")
-            version=${tag##*-}
-            if gh release view "$slug-$version" >/dev/null 2>&1; then
-              echo "$slug: $version already built"
-            else
-              echo "$slug: building $version"
-              builds=$(jq -c --arg s "$slug" --arg v "$version" '. + [{slug: $s, version: $v}]' <<< "$builds")
-            fi
-          done < <(jq -r '.[] | "\(.slug) \(.firmware)"' devices.json)
+          builds=$(scripts/plan-builds.sh)
           echo "builds=$builds" >> "$GITHUB_OUTPUT"
 
   build:
