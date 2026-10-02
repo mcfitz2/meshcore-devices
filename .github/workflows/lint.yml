@@ -1,0 +1,27 @@
+name: Lint
+
+# Static checks on every push to main and every PR: shellcheck on the scripts,
+# devices.json vs devices/*.ini consistency, and actionlint on the workflows.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: shellcheck
+        run: shellcheck scripts/*.sh
+      - name: devices.json consistency
+        run: scripts/check-devices.sh
+      - name: actionlint
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color

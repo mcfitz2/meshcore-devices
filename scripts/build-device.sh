@@ -22,7 +22,8 @@ sed -i.bak '/adcAttachPin(PIN_VBAT_READ);/d' "$meshcore/src/helpers/ESP32Board.h
 # upstream platformio.ini loads platformio.local.ini if present
 cat "$root"/devices/*.ini > "$meshcore/platformio.local.ini"
 
-export PLATFORMIO_BUILD_FLAGS="-DFIRMWARE_BUILD_DATE='\"$(date '+%d %b %Y')\"' -DFIRMWARE_VERSION='\"$version-$sha\"'"
+build_date=$(date '+%d %b %Y')
+export PLATFORMIO_BUILD_FLAGS="-DFIRMWARE_BUILD_DATE='\"$build_date\"' -DFIRMWARE_VERSION='\"$version-$sha\"'"
 cd "$meshcore"
 pio run -e "$env"
 pio run -e "$env" -t mergebin

@@ -45,5 +45,6 @@ GitHub disables scheduled workflows in public repos after 60 days without commit
 1. Add an entry to `devices.json`: `slug`, `name`, `firmware` (`repeater`, `companion` or `room-server`), `env`, `hardware` (shown on the flasher page) and `chip` (ESP Web Tools chip family, e.g. `ESP32-S3`).
 2. Add `devices/<slug>.ini` defining `[env:<env>]`. Extend an upstream target and add `${us_preset.build_flags}`.
 3. Copy one of the per-device workflows in `.github/workflows/` and change its name and slug.
+4. Run `scripts/check-devices.sh` to check that `devices.json` and `devices/` agree (the **Lint** workflow also runs it on pushes and PRs).
 
 Build locally with `scripts/build-device.sh <slug> <path-to-MeshCore-checkout>`.
