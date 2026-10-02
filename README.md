@@ -37,7 +37,7 @@ Rebuilding a version replaces that release's files in place. Devices report thei
 ## How builds run
 
 - **Check for MeshCore releases** runs daily and on pushes that change device config. It builds a device if this repo has no complete release for the latest MeshCore version of its firmware type, or if that release was built from older device config (the release notes record the config commit).
-- Each device also has its own workflow (e.g. **Solar Repeater**) to build on demand, optionally for a specific MeshCore version.
+- **Build device on demand** builds one device by slug on demand, optionally for a specific MeshCore version.
 - After any build, **Deploy web flasher** republishes the site with each device's highest-version release.
 
 GitHub disables scheduled workflows in public repos after 60 days without commits. If that happens, re-enable **Check for MeshCore releases** from the Actions tab.
@@ -46,7 +46,6 @@ GitHub disables scheduled workflows in public repos after 60 days without commit
 
 1. Add an entry to `devices.json`: `slug`, `name`, `firmware` (`repeater`, `companion` or `room-server`), `env`, `hardware` (shown on the flasher page) and `chip` (ESP Web Tools chip family, e.g. `ESP32-S3`).
 2. Add `devices/<slug>.ini` defining `[env:<env>]`. Extend an upstream target and add `${us_preset.build_flags}`.
-3. Copy one of the per-device workflows in `.github/workflows/` and change its name and slug.
-4. Run `scripts/check-devices.sh` to check that `devices.json` and `devices/` agree (the **Lint** workflow also runs it on pushes and PRs).
+3. Run `scripts/check-devices.sh` to check that `devices.json` and `devices/` agree (the **Lint** workflow also runs it on pushes and PRs).
 
 Build locally with `scripts/build-device.sh <slug> <path-to-MeshCore-checkout>`.

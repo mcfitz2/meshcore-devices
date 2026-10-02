@@ -2,7 +2,7 @@ name: Build device
 
 # Reusable: builds one device and publishes it to the release
 # "<slug>-<version>". Rebuilding an existing version replaces its assets and
-# notes in place. Called by check-releases.yml and the per-device workflows.
+# notes in place. Called by check-releases.yml and build.yml.
 on:
   workflow_call:
     inputs:
