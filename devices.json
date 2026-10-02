@@ -5,7 +5,8 @@
     "firmware": "repeater",
     "env": "solar_repeater",
     "hardware": "Xiao ESP32-C6 + Wio-SX1262",
-    "chip": "ESP32-C6"
+    "chip": "ESP32-C6",
+    "ota": true
   },
   {
     "slug": "stealth-companion",

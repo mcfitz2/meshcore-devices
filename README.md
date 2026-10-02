@@ -32,7 +32,7 @@ Rebuilding a version replaces that release's files in place. Devices report thei
 
 1. Send `start ota` from the app or CLI.
 2. Join the open `MeshCore-OTA` WiFi network and open `http://192.168.4.1/update`.
-3. Upload `solar-repeater-<version>.bin`. The device reboots when done.
+3. Upload `solar-repeater-<version>.bin`, linked as "OTA update" on the web flasher page. The device reboots when done.
 
 ## How builds run
 
@@ -44,7 +44,7 @@ GitHub disables scheduled workflows in public repos after 60 days without commit
 
 ## Adding a device
 
-1. Add an entry to `devices.json`: `slug`, `name`, `firmware` (`repeater`, `companion` or `room-server`), `env`, `hardware` (shown on the flasher page) and `chip` (ESP Web Tools chip family, e.g. `ESP32-S3`).
+1. Add an entry to `devices.json`: `slug`, `name`, `firmware` (`repeater`, `companion` or `room-server`), `env`, `hardware` (shown on the flasher page) and `chip` (ESP Web Tools chip family, e.g. `ESP32-S3`). Optional `ota: true` adds an OTA .bin link on the flasher page (for devices with WiFi OTA enabled).
 2. Add `devices/<slug>.ini` defining `[env:<env>]`. Extend an upstream target and add `${us_preset.build_flags}`.
 3. Run `scripts/check-devices.sh` to check that `devices.json` and `devices/` agree (the **Lint** workflow also runs it on pushes and PRs).
 

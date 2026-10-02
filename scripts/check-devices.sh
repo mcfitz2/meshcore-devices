@@ -21,7 +21,7 @@ fi
 
 count=$(jq length "$json")
 
-# required string fields, then allowed firmware values
+# required string fields, allowed firmware values, optional boolean ota
 while IFS= read -r msg; do
   err "$msg"
 done < <(jq -r '
@@ -33,7 +33,9 @@ done < <(jq -r '
         | "entry \($i) (\($d.slug // "?")): missing or empty string field \"\($f)\""),
       (select(($d.firmware | type) == "string" and $d.firmware != ""
               and (["repeater","companion","room-server"] | index($d.firmware) | not))
-        | "entry \($i) (\($d.slug // "?")): firmware \"\($d.firmware)\" must be repeater, companion or room-server")
+        | "entry \($i) (\($d.slug // "?")): firmware \"\($d.firmware)\" must be repeater, companion or room-server"),
+      (select($d | has("ota") and (.ota | type) != "boolean")
+        | "entry \($i) (\($d.slug // "?")): field \"ota\" must be true or false")
     end
 ' "$json")
 
