@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Print the JSON list of builds the daily check should run. A device needs a
 # build when its release for the latest MeshCore version (a) doesn't exist,
-# (b) lacks <release>.bin or <release>-merged.bin, or (c) was built from older
+# (b) lacks an expected asset (see scripts/assets.sh), or (c) was built from older
 # device config than HEAD.
 # Needs GH_REPO (owner/name), a gh token and full git history.
 # usage: scripts/plan-builds.sh
@@ -24,12 +24,12 @@ while read -r slug firmware; do
   if ! info=$(gh release view "$release" --json body,assets 2>/dev/null); then
     reason="no release"
   else
-    for asset in "$release.bin" "$release-merged.bin"; do
+    while read -r asset; do
       if ! jq -e --arg a "$asset" 'any(.assets[].name; . == $a)' <<< "$info" >/dev/null; then
         reason="missing $asset"
         break
       fi
-    done
+    done < <("$root/scripts/assets.sh" "$slug" "$version")
   fi
 
   if [ -z "$reason" ]; then

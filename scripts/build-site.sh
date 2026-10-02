@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Build the web flasher site into site/: for each device, download the
-# merged image from its newest release and write an ESP Web Tools manifest.
+# Build the web flasher site into site/: for each esp32 device, download the
+# merged image from its newest release and write an ESP Web Tools manifest;
+# each nrf52 device just links its release's .uf2 and .zip.
 # Needs GH_REPO (owner/name) and a gh token.
 # usage: scripts/build-site.sh
 set -euo pipefail
@@ -12,11 +13,13 @@ mkdir -p "$site/firmware"
 
 rows=""
 ota_note=""
+nrf_note=""
 while read -r device; do
   slug=$(jq -r .slug <<< "$device")
   name=$(jq -r .name <<< "$device")
   hardware=$(jq -r .hardware <<< "$device")
-  chip=$(jq -r .chip <<< "$device")
+  platform=$(jq -r .platform <<< "$device")
+  chip=$(jq -r '.chip // ""' <<< "$device")
   ota=$(jq -r '.ota // false' <<< "$device")
 
   # highest version, not newest, so an on-demand build of an old version
@@ -30,34 +33,47 @@ while read -r device; do
   version=${release#"$slug-"}
   echo "$slug: $version"
 
-  mkdir -p "$site/firmware/$slug"
-  # one device's missing asset must not break the flasher for the others
-  if ! gh release download "$release" --pattern "$slug-$version-merged.bin" --dir "$site/firmware/$slug"; then
-    echo "::warning::$slug: could not download $slug-$version-merged.bin from $release, skipping" >&2
-    rm -rf "${site:?}/firmware/$slug"
-    continue
-  fi
+  base="https://github.com/$GH_REPO/releases/download/$release"
+  if [ "$platform" = nrf52 ]; then
+    # nothing to download: the browser can't flash these, so link the assets
+    # (names from assets.sh: uf2 first, then the DFU zip)
+    { read -r uf2; read -r zip; } < <("$root/scripts/assets.sh" "$slug" "$version")
+    install="<a href=\"$base/$uf2\">UF2</a> &middot; <a href=\"$base/$zip\">DFU zip</a>"
+    nrf_note="<p><strong>nRF52 devices</strong> (UF2 / DFU zip links): double-tap the reset button to mount the device as a USB drive and copy the .uf2 onto it. Or use the .zip with nRF Connect or <code>adafruit-nrfutil</code> DFU.</p>"
+    ota_link=""
+  else
+    merged="$slug-$version-merged.bin"
+    mkdir -p "$site/firmware/$slug"
+    # one device's missing asset must not break the flasher for the others
+    if ! gh release download "$release" --pattern "$merged" --dir "$site/firmware/$slug"; then
+      echo "::warning::$slug: could not download $merged from $release, skipping" >&2
+      rm -rf "${site:?}/firmware/$slug"
+      continue
+    fi
 
-  jq -n --arg name "$name" --arg version "$version" --arg chip "$chip" \
-    --arg path "$slug-$version-merged.bin" '{
-      name: $name,
-      version: $version,
-      new_install_prompt_erase: true,
-      builds: [{chipFamily: $chip, parts: [{path: $path, offset: 0}]}]
-    }' > "$site/firmware/$slug/manifest.json"
+    jq -n --arg name "$name" --arg version "$version" --arg chip "$chip" \
+      --arg path "$merged" '{
+        name: $name,
+        version: $version,
+        new_install_prompt_erase: true,
+        builds: [{chipFamily: $chip, parts: [{path: $path, offset: 0}]}]
+      }' > "$site/firmware/$slug/manifest.json"
 
-  # devices with WiFi OTA also link the app image, which is what the updater takes
-  ota_link=""
-  if [ "$ota" = true ]; then
-    ota_link="<br><small><a href=\"https://github.com/$GH_REPO/releases/download/$release/$slug-$version.bin\">OTA update (.bin)</a></small>"
-    ota_note="<p><strong>Updating over WiFi</strong> (devices with an OTA link): send <code>start ota</code> from the app or CLI, join the open <code>MeshCore-OTA</code> WiFi network, open <code>http://192.168.4.1/update</code> and upload the OTA .bin.</p>"
+    install="<esp-web-install-button manifest=\"firmware/$slug/manifest.json\"></esp-web-install-button>"
+
+    # devices with WiFi OTA also link the app image, which is what the updater takes
+    ota_link=""
+    if [ "$ota" = true ]; then
+      ota_link="<br><small><a href=\"$base/$slug-$version.bin\">OTA update (.bin)</a></small>"
+      ota_note="<p><strong>Updating over WiFi</strong> (devices with an OTA link): send <code>start ota</code> from the app or CLI, join the open <code>MeshCore-OTA</code> WiFi network, open <code>http://192.168.4.1/update</code> and upload the OTA .bin.</p>"
+    fi
   fi
 
   rows+="
       <tr>
         <td><strong>$name</strong><br><small>$hardware</small></td>
         <td><a href=\"https://github.com/$GH_REPO/releases/tag/$release\">$version</a>$ota_link</td>
-        <td><esp-web-install-button manifest=\"firmware/$slug/manifest.json\"></esp-web-install-button></td>
+        <td>$install</td>
       </tr>"
 done < <(jq -c '.[]' "$root/devices.json")
 
@@ -88,6 +104,7 @@ cat > "$site/index.html" <<EOF
     <p><strong>New or wiped device:</strong> answer <em>Yes</em>. It starts with the US preset; set admin and guest passwords in the app.</p>
     <p>If the device isn't detected, hold BOOT while plugging it in.</p>
     $ota_note
+    $nrf_note
   </div>
   <p><small>Built by <a href="https://github.com/$GH_REPO">$GH_REPO</a> from <a href="https://github.com/meshcore-dev/MeshCore">MeshCore</a> releases.</small></p>
 </body>

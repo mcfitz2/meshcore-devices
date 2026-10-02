@@ -21,19 +21,28 @@ fi
 
 count=$(jq length "$json")
 
-# required string fields, allowed firmware values, optional boolean ota
+# required string fields, allowed firmware and platform values, chip only for
+# esp32, optional boolean ota (esp32 only)
 while IFS= read -r msg; do
   err "$msg"
 done < <(jq -r '
   to_entries[] | .key as $i | .value as $d
   | if ($d | type) != "object" then "entry \($i) is not an object"
     else
-      (("slug","name","firmware","env","hardware","chip") as $f
+      (("slug","name","firmware","env","hardware") as $f
         | select(($d[$f] | type) != "string" or $d[$f] == "")
         | "entry \($i) (\($d.slug // "?")): missing or empty string field \"\($f)\""),
       (select(($d.firmware | type) == "string" and $d.firmware != ""
               and (["repeater","companion","room-server"] | index($d.firmware) | not))
         | "entry \($i) (\($d.slug // "?")): firmware \"\($d.firmware)\" must be repeater, companion or room-server"),
+      (select(($d.platform | IN("esp32","nrf52") | not))
+        | "entry \($i) (\($d.slug // "?")): field \"platform\" must be esp32 or nrf52"),
+      (select($d.platform == "esp32" and (($d.chip | type) != "string" or $d.chip == ""))
+        | "entry \($i) (\($d.slug // "?")): esp32 needs a non-empty string field \"chip\""),
+      (select($d.platform == "nrf52" and ($d | has("chip")))
+        | "entry \($i) (\($d.slug // "?")): field \"chip\" is only for esp32"),
+      (select($d.platform == "nrf52" and ($d | has("ota")))
+        | "entry \($i) (\($d.slug // "?")): field \"ota\" is only for esp32"),
       (select($d | has("ota") and (.ota | type) != "boolean")
         | "entry \($i) (\($d.slug // "?")): field \"ota\" must be true or false")
     end

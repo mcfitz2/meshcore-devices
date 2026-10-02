@@ -3,6 +3,7 @@
     "slug": "solar-repeater",
     "name": "CHZ Repeater",
     "firmware": "repeater",
+    "platform": "esp32",
     "env": "solar_repeater",
     "hardware": "Xiao ESP32-C6 + Wio-SX1262",
     "chip": "ESP32-C6",
@@ -12,6 +13,7 @@
     "slug": "stealth-companion",
     "name": "CHZ Stealth",
     "firmware": "companion",
+    "platform": "esp32",
     "env": "stealth_companion",
     "hardware": "Heltec V3",
     "chip": "ESP32-S3"
@@ -20,6 +22,7 @@
     "slug": "gmrs-backpack-companion",
     "name": "CHZ Portable",
     "firmware": "companion",
+    "platform": "esp32",
     "env": "gmrs_backpack_companion",
     "hardware": "Heltec V3",
     "chip": "ESP32-S3"
