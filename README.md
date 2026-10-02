@@ -26,6 +26,8 @@ Each release is named `<device>-<version>`, e.g. `solar-repeater-v1.17.1`.
 - `<device>-<version>.bin`: app image. Use it to update a device that already runs MeshCore (OTA or USB).
 - `<device>-<version>-merged.bin`: full flash image, written at `0x0`. Use it for a new or wiped device.
 
+Rebuilding a version replaces that release's files in place. Devices report their firmware version as `<meshcore-version>-<config-commit>`, e.g. `v1.17.1-eab965e`.
+
 ## Updating the Solar Repeater over WiFi
 
 1. Send `start ota` from the app or CLI.
@@ -34,7 +36,7 @@ Each release is named `<device>-<version>`, e.g. `solar-repeater-v1.17.1`.
 
 ## How builds run
 
-- **Check for MeshCore releases** runs daily. For each device it looks up the latest MeshCore release of that device's firmware type and builds it if this repo has no matching release yet.
+- **Check for MeshCore releases** runs daily and on pushes that change device config. It builds a device if this repo has no complete release for the latest MeshCore version of its firmware type, or if that release was built from older device config (the release notes record the config commit).
 - Each device also has its own workflow (e.g. **Solar Repeater**) to build on demand, optionally for a specific MeshCore version.
 - After any build, **Deploy web flasher** republishes the site with each device's highest-version release.
 

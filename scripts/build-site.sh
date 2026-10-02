@@ -29,7 +29,12 @@ while read -r device; do
   echo "$slug: $version"
 
   mkdir -p "$site/firmware/$slug"
-  gh release download "$release" --pattern "$slug-$version-merged.bin" --dir "$site/firmware/$slug"
+  # one device's missing asset must not break the flasher for the others
+  if ! gh release download "$release" --pattern "$slug-$version-merged.bin" --dir "$site/firmware/$slug"; then
+    echo "::warning::$slug: could not download $slug-$version-merged.bin from $release, skipping" >&2
+    rm -rf "${site:?}/firmware/$slug"
+    continue
+  fi
 
   jq -n --arg name "$name" --arg version "$version" --arg chip "$chip" \
     --arg path "$slug-$version-merged.bin" '{
